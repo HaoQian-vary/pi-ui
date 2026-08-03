@@ -1,0 +1,27 @@
+{
+  "name": "pi-web",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "本地 Web 界面,驱动 Pi (pi-coding-agent) 编码代理(基于 pi --mode rpc)",
+  "scripts": {
+    "dev": "vite web --config vite.config.mjs",
+    "build": "vite build web --config vite.config.mjs",
+    "preview": "vite preview web --config vite.config.mjs",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "marked": "^12.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "vite": "^5.4.11"
+  },
+  "license": "MIT"
+}
