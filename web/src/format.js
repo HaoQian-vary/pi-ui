@@ -1,5 +1,15 @@
 // 格式化工具:tokens、费用、时间、字节。
 
+// provider 显示名:pi 的 provider id → OMP UI 名称(仅显示用,底层 id 不变,凭据/切换仍用 pi id)。
+// zai-coding-cn 对应 OMP 的 zhipu-coding-plan(智谱 coding plan,迁移时凭据转存)。
+const PROVIDER_LABELS = {
+  "zai-coding-cn": "zhipu-coding-plan",
+};
+
+export function providerLabel(id) {
+  return PROVIDER_LABELS[id] ?? id;
+}
+
 export function fmtTokens(n) {
   if (n == null || Number.isNaN(n)) return "—";
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;

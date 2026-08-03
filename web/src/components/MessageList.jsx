@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useApp } from "../store";
 import { useChunks, splitByHeadings, DiffView } from "../md";
-import { fmtClock, fmtCost, fmtTokens, costOf, tokensOf } from "../format";
+import { fmtClock, fmtCost, fmtTokens, costOf, tokensOf, providerLabel } from "../format";
 import { IconTerminal, IconChevronRight, IconChevronDown, IconCopy, IconCheck, IconBot, IconUser, IconAlert, IconBrain, IconLayers, IconPaperclip, IconImage } from "../icons";
 import { useLang } from "../i18n";
 import { useState } from "react";
@@ -653,7 +653,7 @@ function MessageMeta({ msg }) {
   };
   return (
     <div className="flex items-center gap-3 px-3.5 py-1.5 bg-sidebar/50 border-t border-border text-[10.5px] text-secondary">
-      {provider && <span className="font-mono">{provider}</span>}
+      {provider && <span className="font-mono">{providerLabel(provider)}</span>}
       {model && <span className="font-mono truncate max-w-[160px]">{model}</span>}
       {tokens != null && <span className="font-mono">{fmtTokens(tokens)} tok</span>}
       {cost != null && <span className="font-mono">{fmtCost(cost)}</span>}

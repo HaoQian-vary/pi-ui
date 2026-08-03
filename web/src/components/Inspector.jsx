@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../store";
 import { useLang } from "../i18n";
-import { fmtTokens, fmtBytes, fmtCost } from "../format";
+import { fmtTokens, fmtBytes, fmtCost, providerLabel } from "../format";
 import { IconPanelRight, IconX, IconFileText, IconLogs, IconCheckSquare, IconBrain, IconWrench, IconCpu, IconLayers, IconTerminal, IconChevronRight, IconChevronDown } from "../icons";
 
 const TABS = [
@@ -83,7 +83,7 @@ function ContextTab() {
         <KV k={t("自动压缩")} v={st?.autoCompactionEnabled ? t("开") : t("关")} />
       </Section>
       <Section title={t("模型")}>
-        <KV k="Provider" v={<span className="font-mono">{st?.model?.provider ?? "—"}</span>} />
+        <KV k="Provider" v={<span className="font-mono">{providerLabel(st?.model?.provider) ?? "—"}</span>} />
         <KV k="Model" v={<span className="font-mono">{st?.model?.id ?? "—"}</span>} />
         <KV k="Base URL" v={<span className="font-mono text-[10.5px] break-all">{st?.model?.baseUrl ?? "—"}</span>} />
         <KV k={t("上下文窗口")} v={<span className="font-mono">{fmtTokens(st?.model?.contextWindow)}</span>} />

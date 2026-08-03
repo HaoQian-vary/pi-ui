@@ -1,7 +1,7 @@
 // 左侧 Sidebar:导航、搜索、会话历史、底部用户/provider/model 信息。
 import { useMemo, useState } from "react";
 import { useApp } from "../store";
-import { fmtTokens } from "../format";
+import { fmtTokens, providerLabel } from "../format";
 import { useLang } from "../i18n";
 import {
   IconPlus, IconSearch, IconHistory, IconBook, IconFolder, IconPuzzle,
@@ -15,7 +15,7 @@ const NAV = [
   { id: "skills", label: "Skills", icon: IconWrench },
   { id: "workspaces", label: "工作区", icon: IconFolder },
   { id: "packages", label: "Packages", icon: IconPuzzle },
-  { id: "models", label: "模型", icon: IconCpu },
+  { id: "models", label: "模型管理", icon: IconCpu },
   { id: "settings", label: "设置", icon: IconSettings },
 ];
 
@@ -119,7 +119,7 @@ export function Sidebar() {
           <div className="space-y-1 text-[11.5px]">
             <div className="flex items-center justify-between gap-2">
               <span className="text-secondary shrink-0">Provider</span>
-              <span className="font-mono truncate text-right">{model?.provider ?? "—"}</span>
+              <span className="font-mono truncate text-right">{providerLabel(model?.provider) ?? "—"}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-secondary shrink-0">Model</span>

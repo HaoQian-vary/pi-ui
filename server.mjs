@@ -37,14 +37,23 @@ function resolvePi() {
   }
   if (process.platform !== "win32") return { bin: "pi", args: [] };
   const candidates = [];
-  try {
-    const root = execFileSync("npm", ["root", "-g"], { encoding: "utf8", windowsHide: true }).trim();
-    candidates.push(join(root, "@earendil-works", "pi-coding-agent", "dist", "cli.js"));
-  } catch { /* npm 不可用 */ }
+  const tryRoot = (cmd) => {
+    try {
+      const root = execFileSync(cmd, ["root", "-g"], { encoding: "utf8", windowsHide: true, shell: true }).trim();
+      if (root) candidates.push(join(root, "@earendil-works", "pi-coding-agent", "dist", "cli.js"));
+    } catch { /* npm 不可用 */ }
+  };
+  tryRoot("npm");
+  tryRoot("npm.cmd");
   candidates.push(
     join(process.env.APPDATA ?? "", "npm", "node_modules", "@earendil-works", "pi-coding-agent", "dist", "cli.js"),
     join(process.env.LOCALAPPDATA ?? "", "npm", "node_modules", "@earendil-works", "pi-coding-agent", "dist", "cli.js"),
   );
+  // 追加探测 hermes 等 Node 发行版自带的 npm 全局目录(其 npm 不在 node 进程 PATH 中)
+  const nodeDir = process.env.LOCALAPPDATA
+    ? join(process.env.LOCALAPPDATA, "hermes", "node", "node_modules", "@earendil-works", "pi-coding-agent", "dist", "cli.js")
+    : "";
+  if (nodeDir) candidates.push(nodeDir);
   for (const c of candidates) if (existsSync(c)) return { bin: process.execPath, args: [c] };
   return { bin: "pi", args: [] }; // 兜底:PATH 中存在真实二进制(手动安装)
 }
@@ -76,8 +85,8 @@ async function migrateOmpCredentials() {
     }
   } catch { /* 读取失败 → 跳过迁移 */ }
   if (!rows?.length) return;
-  // omp provider id → pi auth.json key
-  const alias = { deepseek: "deepseek", "zhipu-coding-plan": "zai-coding-cn" };
+  // omp provider id → pi auth.json key（xiaomi 等其余同名 provider 原样迁移）
+  const alias = { deepseek: "deepseek", "zhipu-coding-plan": "zai-coding-cn", xiaomi: "xiaomi" };
   const added = [];
   for (const r of rows) {
     const id = alias[r?.provider];

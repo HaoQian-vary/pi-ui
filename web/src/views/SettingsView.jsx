@@ -1,9 +1,9 @@
-// 设置:Agent 设置(接真实 RPC 命令)+ Provider 配置(信息展示)+ 登录。
-import { useEffect, useState } from "react";
+// 设置:Agent 设置(接真实 RPC 命令)+ Provider 配置(信息展示)。
+import { useState } from "react";
 import { useApp } from "../store";
 import { useLang } from "../i18n";
 import { PageShell } from "./PageShell";
-import { fmtTokens } from "../format";
+import { fmtTokens, providerLabel } from "../format";
 import { IconGlobe, IconSettings } from "../icons";
 
 function Switch({ checked, onChange, disabled, label }) {
@@ -26,14 +26,6 @@ export function SettingsView() {
   const { state, actions } = useApp();
   const st = state.state;
   const [busy, setBusy] = useState(null);
-  const [loginInfo, setLoginInfo] = useState(null);
-  const [keyInput, setKeyInput] = useState(""); // 当前正在输入密钥的 provider
-  const [keyValue, setKeyValue] = useState("");
-
-  const reloadProviders = () => {
-    actions.loginProviders().then((list) => setLoginInfo(list)).catch(() => {});
-  };
-  useEffect(() => { reloadProviders(); }, []);
 
   const run = async (key, fn, okMsg) => {
     setBusy(key);
@@ -46,47 +38,6 @@ export function SettingsView() {
     }
   };
 
-  // 保存 API Key：写入 ~/.pi/agent/auth.json，保存后自动重启 pi 子进程生效
-  const saveKey = async (providerId) => {
-    const key = keyValue.trim();
-    if (!key) return;
-    setBusy(`key-${providerId}`);
-    try {
-      const ok = await actions.login(providerId, key);
-      if (ok) {
-        actions.toast(`${providerId} API Key 已保存，pi 已重启生效`);
-        setKeyInput(null);
-        setKeyValue("");
-        reloadProviders();
-        actions.refreshModels();
-      } else {
-        actions.toast(`${t("失败")}: ${t("保存失败")}`, "bad");
-      }
-    } catch (e) {
-      actions.toast(String(e), "bad");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  // 退出登录：删除 auth.json 中的本地 API Key 凭据
-  const handleLogout = async (providerId) => {
-    if (!window.confirm(`确定清除 ${providerId} 的 API Key 吗？\n\n清除后该 Provider 的模型将不可用。需要重新配置新的 API Key。`)) return;
-    setBusy(`logout-${providerId}`);
-    try {
-      const ok = await actions.logout(providerId);
-      if (ok) {
-        actions.toast(`${t("已清除: ")}${providerId}`);
-        reloadProviders();
-        actions.refreshModels();
-      } else {
-        actions.toast(`${t("失败")}: ${t("清除失败")}`, "bad");
-      }
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const agent = [
     {
       key: "autoCompaction",
@@ -94,6 +45,13 @@ export function SettingsView() {
       desc: "接近上下文窗口时自动压缩历史",
       value: st?.autoCompactionEnabled ?? false,
       set: (v) => run("ac", () => actions.setAutoCompaction(v), v ? t("已开启自动压缩") : t("已关闭自动压缩")),
+    },
+    {
+      key: "autoRetry",
+      label: "自动重试",
+      desc: "工具调用出错时自动重试",
+      value: st?.autoRetryEnabled ?? false,
+      set: (v) => run("ar", () => actions.setAutoRetry(v), v ? t("已开启自动重试") : t("已关闭自动重试")),
     },
   ];
 
@@ -112,9 +70,16 @@ export function SettingsView() {
       set: (v) => run("fu", () => actions.setFollowUpMode(v), `${t("Follow-up 模式")}: ${v}`),
       opts: ["one-at-a-time", "all"],
     },
+    {
+      label: "Interrupt 模式",
+      desc: "工具执行期间的转向打断策略",
+      value: st?.interruptMode ?? "immediate",
+      set: (v) => run("int", () => actions.setInterruptMode(v), `${t("Interrupt 模式")}: ${v}`),
+      opts: ["immediate", "wait"],
+    },
   ];
 
-  const provider = st?.model?.provider ?? "—";
+  const provider = providerLabel(st?.model?.provider ?? "—");
   const baseUrl = st?.model?.baseUrl ?? "—";
   const model = st?.model;
 
@@ -162,11 +127,11 @@ export function SettingsView() {
           </div>
           <select
             className="select"
-            value={st?.thinkingLevel ?? "medium"}
+            value={st?.thinkingLevel ?? "auto"}
             disabled={busy === "think"}
             onChange={(e) => run("think", () => actions.setThinking(e.target.value), `思考级别: ${e.target.value}`)}
           >
-            {["off", "minimal", "low", "medium", "high", "xhigh", "max"].map((l) => (
+            {["off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"].map((l) => (
               <option key={l} value={l}>{l}</option>
             ))}
           </select>
@@ -204,63 +169,6 @@ export function SettingsView() {
           </div>
         </div>
       </div>
-
-      {/* 登录状态 */}
-      <h2 className="text-[13.5px] font-semibold mt-6 mb-2">{t("登录")}</h2>
-      <div className="card divide-y divide-border/60">
-        {!loginInfo && <div className="p-4 text-[12.5px] text-secondary">{t("加载中…")}</div>}
-        {loginInfo?.map((p) => (
-          <div key={p.id} className="px-4 py-2.5">
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-[12.5px] flex-1 truncate" title={p.name}>{p.id}</span>
-              <span className={`text-[11px] px-2 py-0.5 rounded-full border ${p.configured ? "border-success/40 text-success" : "border-border text-secondary"}`}>
-                {p.configured ? (p.source === "auth" ? t("已配置(auth.json)") : t("已配置(环境变量)")) : t("未配置")}
-              </span>
-              {p.source === "auth" && (
-                <button
-                  className="btn btn-ghost h-6 text-[11.5px] text-error"
-                  title={t("清除后该 Provider 的模型将不可用，需要重新配置 API Key")}
-                  onClick={() => handleLogout(p.id)}
-                  disabled={busy === `logout-${p.id}`}
-                >
-                  {busy === `logout-${p.id}` ? t("清除中…") : t("清除")}
-                </button>
-              )}
-              <button
-                className="btn h-6 text-[11.5px]"
-                onClick={() => { setKeyInput(keyInput === p.id ? null : p.id); setKeyValue(""); }}
-                disabled={busy === `key-${p.id}`}
-              >
-                {t("设置密钥")}
-              </button>
-            </div>
-            {p.name && <div className="text-[11px] text-secondary mt-0.5 truncate">{p.name}</div>}
-            {keyInput === p.id && (
-              <div className="flex gap-2 mt-2">
-                <input
-                  type="password"
-                  className="input h-7 flex-1 text-[12px] font-mono"
-                  placeholder="api key…"
-                  value={keyValue}
-                  onChange={(e) => setKeyValue(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && keyValue.trim() && saveKey(p.id)}
-                  autoFocus
-                />
-                <button
-                  className="btn h-7 text-[12px]"
-                  onClick={() => saveKey(p.id)}
-                  disabled={busy === `key-${p.id}` || !keyValue.trim()}
-                >
-                  {busy === `key-${p.id}` ? t("保存中…") : t("保存")}
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      <p className="text-[11.5px] text-secondary mt-2 leading-relaxed">
-        {t("API Key 写入 ~/.pi/agent/auth.json(仅本机可读)，保存后自动重启 pi 生效；环境变量配置的凭据(如 DEEPSEEK_API_KEY)同样可用。OAuth 订阅账号请在终端运行 pi /login。")}
-      </p>
 
       {/* 系统信息 */}
       <h2 className="text-[13.5px] font-semibold mt-6 mb-2">{t("系统信息")}</h2>

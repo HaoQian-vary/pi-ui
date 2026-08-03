@@ -1,9 +1,9 @@
 // 顶部栏:会话名、模型切换、思考级别、Agent 状态、停止/新建。
 import { useState } from "react";
 import { useApp } from "../store";
-import { IconChevronDown, IconPanelRight, IconStop, IconPlus, IconCheck } from "../icons";
-import { fmtTokens } from "../format";
+import { fmtTokens, providerLabel } from "../format";
 import { useLang } from "../i18n";
+import { IconChevronDown, IconPanelRight, IconStop, IconPlus, IconCheck } from "../icons";
 
 export function Topbar() {
   const { state, actions } = useApp();
@@ -11,6 +11,7 @@ export function Topbar() {
   const [modelOpen, setModelOpen] = useState(false);
   const [levelOpen, setLevelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(false);
   const { t } = useLang();
 
   const model = st?.model;
@@ -42,6 +43,17 @@ export function Topbar() {
       if (!r?.ok) actions.toast(`${t("切换失败")}: ${r?.error ?? ""}`, "bad");
     } finally {
       setBusy(false);
+    }
+  };
+
+  // 打开模型下拉时若列表为空则主动刷新（get_available_models 首次较慢，避免"无可用模型"）
+  const toggleModel = () => {
+    setLevelOpen(false);
+    if (modelOpen) { setModelOpen(false); return; }
+    setModelOpen(true);
+    if (!models.length && !modelsLoading) {
+      setModelsLoading(true);
+      actions.refreshModels().finally(() => setModelsLoading(false));
     }
   };
 
@@ -102,7 +114,7 @@ export function Topbar() {
               style={{ background: modelOpen ? 'var(--color-bg-elevated)' : 'transparent' }}
               onMouseEnter={(e) => { if (!modelOpen) e.currentTarget.style.background = 'var(--color-bg-elevated)'; }}
               onMouseLeave={(e) => { if (!modelOpen) e.currentTarget.style.background = 'transparent'; }}
-              onClick={(e) => { e.stopPropagation(); setModelOpen(!modelOpen); setLevelOpen(false); }}
+              onClick={(e) => { e.stopPropagation(); toggleModel(); }}
               disabled={busy}
               title={t("点击切换模型")}
             >
@@ -115,12 +127,13 @@ export function Topbar() {
               <div className="absolute right-0 top-full mt-1 w-72 max-h-[70vh] overflow-y-auto card shadow-xl z-50 animate-fade-in" style={{ background: 'var(--color-card)' }}>
                 <div className="px-3 py-2 text-[11px] border-b" style={{ color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }}>
                   {t("模型")} · {models.length} {t("个可用")}
+                  {modelsLoading && <span className="ml-1">({t("加载中…")})</span>}
                 </div>
                 <div className="py-1">
                   {Object.entries(groups).map(([provider, list]) => (
                     <div key={provider}>
                       <div className="px-3 pt-2 pb-1 text-[10.5px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
-                        {provider}
+                        {providerLabel(provider)}
                       </div>
                       {list.map((m) => (
                         <button
@@ -146,7 +159,9 @@ export function Topbar() {
                     </div>
                   ))}
                   {!models.length && (
-                    <div className="px-3 py-3 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>{t("暂无可用模型")}</div>
+                    <div className="px-3 py-3 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+                      {modelsLoading ? t("加载中…") : t("暂无可用模型")}
+                    </div>
                   )}
                 </div>
               </div>
