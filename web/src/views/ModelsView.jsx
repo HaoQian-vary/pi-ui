@@ -3,6 +3,7 @@
 // 行内按钮为 退出/设为当前/配置 Key。pi 无 OAuth RPC 登录,所有 provider 的"登录"即写入 ~/.pi/agent/auth.json 的 API Key。
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../store";
+import { api } from "../api";
 import { useLang } from "../i18n";
 import { PageShell } from "./PageShell";
 import { fmtTokens, fmtCost, providerLabel } from "../format";
@@ -11,12 +12,11 @@ import { IconSearch, IconCheck, IconCpu, IconGlobe, IconX } from "../icons";
 export function ModelsView() {
   const { t } = useLang();
   const { state, actions } = useApp();
-  const { models, state: st } = state;
+  const { models, state: st, loginInfo } = state;
   const [q, setQ] = useState("");
   const [provider, setProvider] = useState("全部");
   const [busy, setBusy] = useState(null);
   const keyInputRef = useRef(null);
-  const [loginInfo, setLoginInfo] = useState(null);
   const [keyProvider, setKeyProvider] = useState("");
   const [keyInput, setKeyInput] = useState("");
   // 登录弹框：行内"登录"按钮打开，输入 API Key 保存（对齐 OMP UI 点击登录弹窗的交互）
@@ -38,10 +38,7 @@ export function ModelsView() {
   }
 
   useEffect(() => {
-    fetch("/api/login_providers")
-      .then((r) => r.json())
-      .then((j) => j.ok && setLoginInfo(j.providers))
-      .catch(() => {});
+    actions.refreshLoginInfo();
   }, []);
 
   // 加载到模型时写入缓存（刷新页面后仍保留已退出 provider 的模型行）
@@ -75,15 +72,7 @@ export function ModelsView() {
       }).then((res) => res.json());
       if (r?.ok) {
         actions.toast(`${t("已保存: ")}${providerId}`);
-        fetch("/api/login_providers")
-          .then((res) => res.json())
-          .then((j) => j.ok && setLoginInfo(j.providers))
-          .catch(() => {});
-        // 本地立即标记已登录（无需等待慢刷新）
-        setLoginInfo((prev) => {
-          const list = prev ?? [];
-          return list.map((p) => p.id === providerId ? { ...p, configured: true, source: "auth" } : p);
-        });
+        actions.refreshLoginInfo(); // 全局刷新，Topbar 模型下拉同步恢复显示该 provider
         actions.refreshModels(); // 后台刷新，不阻塞 UI
         return true;
       }
@@ -125,11 +114,12 @@ export function ModelsView() {
       if (r?.ok) {
         actions.toast(`${t("已退出登录: ")}${providerId}`);
         actions.toast(t("已退出登录，模型保留在列表中，可重新登录后使用"));
-        fetch("/api/login_providers")
-          .then((res) => res.json())
-          .then((j) => j.ok && setLoginInfo(j.providers))
-          .catch(() => {});
+        actions.refreshLoginInfo(); // 全局刷新，Topbar 模型下拉同步隐藏该 provider
         actions.refreshModels(); // 后台刷新，不阻塞 UI
+        // 若当前模型被自动切换（原模型不可用），刷新 state 让顶部栏同步
+        if (r.modelReset) {
+          api.state().then((j) => j?.ok && actions.dispatch({ type: "state", state: j.state })).catch(() => {});
+        }
       } else {
         actions.toast(`${t("退出失败: ")}${r?.error ?? ""}`, "bad");
       }
@@ -333,7 +323,9 @@ export function ModelsView() {
                   <td className="px-3 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       {isCurrent && (
-                        <span className="inline-flex items-center gap-1 text-[11.5px] text-success"><IconCheck size={12} /> {t("当前")}</span>
+                        <span className={`inline-flex items-center gap-1 text-[11.5px] ${configured ? "text-success" : "text-error"}`}>
+                          <IconCheck size={12} /> {configured ? t("当前") : `${t("当前")} · ${t("未登录")}`}
+                        </span>
                       )}
                       {configured ? (
                         !isCurrent && (

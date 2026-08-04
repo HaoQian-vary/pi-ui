@@ -1,5 +1,5 @@
 // 顶部栏:会话名、模型切换、思考级别、Agent 状态、停止/新建。
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../store";
 import { fmtTokens, providerLabel } from "../format";
 import { useLang } from "../i18n";
@@ -7,7 +7,7 @@ import { IconChevronDown, IconPanelRight, IconStop, IconPlus, IconCheck } from "
 
 export function Topbar() {
   const { state, actions } = useApp();
-  const { state: st, models, inspector } = state;
+  const { state: st, models, inspector, loginInfo } = state;
   const [modelOpen, setModelOpen] = useState(false);
   const [levelOpen, setLevelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -17,6 +17,15 @@ export function Topbar() {
   const model = st?.model;
   const isStreaming = state.isStreaming ?? false;
   const contextPct = st?.contextUsage?.percent ?? 0;
+
+  // provider 登录状态映射（pi 凭据在 auth.json / 环境变量；未知 provider 默认未登录）
+  const loginMap = useMemo(() => {
+    const map = {};
+    for (const p of loginInfo ?? []) map[p.id] = !!p.configured;
+    return map;
+  }, [loginInfo]);
+  const isConfigured = (provider) => (loginMap[provider] ?? false);
+  const currentConfigured = model ? isConfigured(model.provider) : true;
 
   // 当前模型支持的思考级别（自适应）：pi RPC get_available_thinking_levels，随 state 帧下发
   const availableLevels = Array.isArray(st?.thinkingLevels) ? st.thinkingLevels : [];
@@ -29,11 +38,15 @@ export function Topbar() {
   // 当前工作目录：由服务端 state 帧提供（pi 会话目录编码有损，不能反解）
   const workDir = st?.cwd ?? "—";
 
-  // 按 provider 分组
+  // 按 provider 分组（只显示已登录可用的模型；未登录 provider 的模型不出现，当前模型例外）
   const groups = {};
   for (const m of models) {
+    const configured = isConfigured(m.provider);
+    const isCurrentModel = model && m.provider === model.provider && m.id === model.id;
+    if (!configured && !isCurrentModel) continue;
     (groups[m.provider] ??= []).push(m);
   }
+  const visibleCount = Object.values(groups).reduce((n, l) => n + l.length, 0);
 
   const switchModel = async (provider, modelId) => {
     setModelOpen(false);
@@ -118,15 +131,15 @@ export function Topbar() {
               disabled={busy}
               title={t("点击切换模型")}
             >
-              <span className="font-mono truncate max-w-[120px]" style={{ color: 'var(--color-text-secondary)' }}>
-                {model?.name ?? model?.id ?? t("选择模型")}
+              <span className="font-mono truncate max-w-[120px]" style={{ color: currentConfigured ? 'var(--color-text-secondary)' : 'var(--color-error)' }} title={model?.name ?? model?.id}>
+                {currentConfigured ? (model?.name ?? model?.id ?? t("选择模型")) : `${model?.name ?? model?.id ?? ""} (${t("未登录")})`}
               </span>
               <IconChevronDown size={10} style={{ color: 'var(--color-text-secondary)' }} className="shrink-0" />
             </button>
             {modelOpen && (
               <div className="absolute right-0 top-full mt-1 w-72 max-h-[70vh] overflow-y-auto card shadow-xl z-50 animate-fade-in" style={{ background: 'var(--color-card)' }}>
                 <div className="px-3 py-2 text-[11px] border-b" style={{ color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }}>
-                  {t("模型")} · {models.length} {t("个可用")}
+                  {t("模型")} · {visibleCount} {t("个可用")}
                   {modelsLoading && <span className="ml-1">({t("加载中…")})</span>}
                 </div>
                 <div className="py-1">

@@ -1285,7 +1285,21 @@ async function handleApi(pathname, req, res) {
         delete creds[body.providerId];
         await writeAuth(creds);
         await restartForCredentialChange();
-        return json(res, 200, { ok: true, removed });
+        // 若当前选中模型属于被退出的 provider（已不可用），自动切到首个可用的其他模型
+        let modelReset = false;
+        if (state?.model?.provider === String(body.providerId)) {
+          try {
+            const data = await command("get_available_models");
+            const models = data?.models ?? [];
+            const alt = models.find((m) => m.provider !== String(body.providerId) && m.id);
+            if (alt) {
+              await command("set_model", { provider: alt.provider, modelId: alt.id });
+              await refreshState();
+              modelReset = true;
+            }
+          } catch { /* 切换失败不阻塞 */ }
+        }
+        return json(res, 200, { ok: true, removed, modelReset });
       } catch (e) {
         return fail(e);
       }
