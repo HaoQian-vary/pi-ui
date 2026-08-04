@@ -266,6 +266,8 @@ const DICT = {  "回答": "Reply",
   "语言设置会保存在浏览器本地存储中": "Language choice is saved in browser storage",
   "当前工作区": "Current Workspace",
   "会话文件": "Session File",
+  "刷新": "Refresh",
+  "刷新成功": "Refreshed",
 };
 
 const LangCtx = createContext(null);

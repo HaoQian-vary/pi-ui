@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../store";
 import { fmtTokens, providerLabel } from "../format";
 import { useLang } from "../i18n";
-import { IconChevronDown, IconPanelRight, IconStop, IconPlus, IconCheck } from "../icons";
+import { IconChevronDown, IconPanelRight, IconStop, IconPlus, IconCheck, IconRefresh } from "../icons";
 
 export function Topbar() {
   const { state, actions } = useApp();
@@ -260,6 +260,16 @@ export function Topbar() {
           onClick={() => actions.dispatch({ type: "inspector", open: !inspector })}
         >
           <IconPanelRight size={14} />
+        </button>
+        <button
+          className="btn btn-icon"
+          title={t("刷新")}
+          onClick={async () => {
+            await actions.refreshAll();
+            actions.toast(t("刷新成功"));
+          }}
+        >
+          <IconRefresh size={14} />
         </button>
 
         {/* 上下文占用条 */}

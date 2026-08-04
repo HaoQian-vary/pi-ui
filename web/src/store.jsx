@@ -282,11 +282,13 @@ function reducer(s, a) {
     }
     case "dialog": {
       if (!a.dialog) return { ...s, dialog: null };
-      return { ...s, dialogStack: [...s.dialogStack, a.dialog], dialog: a.dialog };
+      // FIFO:已有弹窗展示时新弹窗排队;否则直接展示(保证 omp/pi 顺序发出的提示按序出现)
+      if (s.dialog) return { ...s, dialogStack: [...s.dialogStack, a.dialog] };
+      return { ...s, dialog: a.dialog };
     }
     case "dialog_close": {
-      const stack = s.dialogStack.slice(0, -1);
-      return { ...s, dialogStack: stack, dialog: stack.length ? stack[stack.length - 1] : null };
+      if (!s.dialogStack.length) return { ...s, dialog: null };
+      return { ...s, dialog: s.dialogStack[0], dialogStack: s.dialogStack.slice(1) };
     }
     case "view": return { ...s, view: a.view };
     case "flow_mode": return { ...s, flowMode: a.mode };
@@ -503,6 +505,15 @@ export function AppProvider({ children }) {
       loadSessions: async () => {
         const r = await api.sessions();
         return r?.ok ? r.sessions ?? [] : [];
+      },
+      refreshAll: async () => {
+        // 手动刷新:重新拉取状态/模型/登录信息
+        api.state().then((r) => { if (r?.ok) dispatch({ type: "state", state: r.state }); }).catch(() => {});
+        const r = await api.models();
+        if (r?.ok) dispatch({ type: "models", models: r.models ?? [] });
+        const l = await api.loginProviders();
+        if (l?.ok) dispatch({ type: "login_info", providers: l.providers ?? [] });
+        return true;
       },
       switchSession: async (path) => {
         const r = await api.switchSession(path);
