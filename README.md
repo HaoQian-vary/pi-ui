@@ -4,6 +4,14 @@ A local web UI for the [Pi](https://github.com/earendil-works/pi-mono) (pi-codin
 
 > 本项目前身是 omp-web（驱动 Oh My Pi / omp 的 Web 界面），现已整体迁移到 pi：引擎、协议桥、凭据、会话与包管理全部切换为 pi。迁移要点见文末「从 omp 迁移」。
 
+## 🖥️ Desktop App (Windows) — installer available
+
+We also ship a Windows desktop installer — double-click to install, no terminal or manual setup needed.
+
+- **Download**: [pi-web_0.3.0_x64-setup.exe](https://github.com/HaoQian-vary/pi-ui/releases/latest/download/pi-web_0.3.0_x64-setup.exe) (Windows x64)
+- A native window (Tauri) with the Node runtime + frontend bundled; starts a local backend bound to `127.0.0.1` only.
+- Requires `pi-coding-agent` to be installed: `npm install -g --ignore-scripts @earendil-works/pi-coding-agent`
+
 ## Why this project exists
 
 **pi is a minimal, powerful terminal-based AI coding agent — but it assumes you live in the command line.**
